@@ -1,122 +1,254 @@
-import { useState } from 'react'
-import heroImg from './assets/hero.png'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import './App.css'
+import { useEffect, useState } from 'react';
+import { supabase } from './lib/supabase';
+import { defaultHabits } from './lib/defaultHabits';
+import Dashboard from './components/Dashboard';
+import History from './components/History';
+import Settings from './components/Settings';
+import './App.css';
 
-function App() {
-  const [count, setCount] = useState(0)
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [page, setPage] = useState('dashboard');
+
+  const [isSignUp, setIsSignUp] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+
+  // Create default habits for a new user.
+  async function createDefaultHabits(userId) {
+    const { data: existingHabits, error: fetchError } = await supabase
+      .from('habits')
+      .select('id')
+      .eq('user_id', userId)
+      .limit(1);
+
+    if (fetchError) throw fetchError;
+
+    // Only seed accounts that have no habits yet.
+    if (existingHabits.length === 0) {
+      const habitsToInsert = defaultHabits.map((habit) => ({
+        ...habit,
+        user_id: userId,
+      }));
+
+      const { error: insertError } = await supabase
+        .from('habits')
+        .insert(habitsToInsert);
+
+      if (insertError) throw insertError;
+    }
+  }
+
+  // Check whether a user is already signed in.
+  useEffect(() => {
+    let mounted = true;
+
+    async function initialize() {
+      const { data, error } = await supabase.auth.getSession();
+
+      if (error) {
+        if (mounted) {
+          setError(error.message);
+          setLoading(false);
+        }
+        return;
+      }
+
+      if (data.session?.user) {
+        try {
+          await createDefaultHabits(data.session.user.id);
+        } catch (err) {
+          if (mounted) setError(err.message);
+        }
+      }
+
+      if (mounted) {
+        setUser(data.session?.user ?? null);
+        setLoading(false);
+      }
+    }
+
+    initialize();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    setError('');
+    setMessage('');
+    setSubmitting(true);
+
+    try {
+      if (isSignUp) {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (error) throw error;
+
+        if (data.session?.user) {
+          await createDefaultHabits(data.session.user.id);
+          setUser(data.session.user);
+        } else {
+          setMessage(
+            'Account created! Check your email for a confirmation link, then sign in.'
+          );
+        }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) throw error;
+
+        await createDefaultHabits(data.user.id);
+        setUser(data.user);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleSignOut() {
+    const { error } = await supabase.auth.signOut();
+    setPage('dashboard');
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setUser(null);
+      setMessage('');
+    }
+  }
+
+  if (loading) {
+    return (
+      <main className="app-shell">
+        <p className="loading-text">Loading your tracker...</p>
+      </main>
+    );
+  }
+
+  if (user) {
+    if (page === 'settings') {
+      return (
+        <Settings
+          user={user}
+          onBack={() => setPage('dashboard')}
+        />
+      );
+    }
+
+    if (page === 'history') {
+      return (
+        <History
+          user={user}
+          onBack={() => setPage('dashboard')}
+          onOpenSettings={() => setPage('settings')}
+          onSignOut={handleSignOut}
+        />
+      );
+    }
+
+    return (
+      <Dashboard
+        user={user}
+        onSignOut={handleSignOut}
+        onOpenSettings={() => setPage('settings')}
+        onOpenHistory={() => setPage('history')}
+      />
+    );
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <main className="app-shell">
+      <section className="auth-card">
+        <div className="brand-mark">H</div>
 
-      <div className="ticks"></div>
+        <p className="eyebrow">BUILD BETTER, EVERY DAY</p>
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
+        <h1>{isSignUp ? 'Create your account.' : 'Welcome back.'}</h1>
+
+        <p className="auth-description">
+          {isSignUp
+            ? 'Start tracking the habits that move you forward.'
+            : 'Sign in to continue building your habits.'}
+        </p>
+
+        <form onSubmit={handleSubmit}>
+          <label htmlFor="email">Email</label>
+          <input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+            required
+          />
+
+          <label htmlFor="password">Password</label>
+          <input
+            id="password"
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="At least 6 characters"
+            autoComplete={isSignUp ? 'new-password' : 'current-password'}
+            minLength={6}
+            required
+          />
+
+          {error && <p className="feedback error">{error}</p>}
+          {message && <p className="feedback success">{message}</p>}
+
+          <button
+            className="primary-button"
+            type="submit"
+            disabled={submitting}
+          >
+            {submitting
+              ? 'Please wait...'
+              : isSignUp
+                ? 'Create account'
+                : 'Sign in'}
+          </button>
+        </form>
+
+        <div className="auth-toggle">
+          {isSignUp ? 'Already have an account?' : "Don't have an account?"}
+          <button
+            type="button"
+            onClick={() => {
+              setIsSignUp(!isSignUp);
+              setError('');
+              setMessage('');
+            }}
+          >
+            {isSignUp ? 'Sign in' : 'Sign up'}
+          </button>
         </div>
       </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+    </main>
+  );
 }
-
-export default App

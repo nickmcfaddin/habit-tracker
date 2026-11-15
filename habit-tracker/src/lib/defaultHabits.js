@@ -1,0 +1,22 @@
+export const defaultHabits = [
+  { name: 'Sleep', habit_type: 'number', unit: 'hours' },
+  { name: 'B12 + D3', habit_type: 'boolean' },
+  { name: 'Fibre', habit_type: 'number', unit: 'gummies' },
+  { name: 'Waters', habit_type: 'number' },
+  { name: 'Meditate', habit_type: 'boolean' },
+  { name: 'TLDR', habit_type: 'boolean' },
+  { name: 'Learn', habit_type: 'boolean' },
+  { name: 'Stretch', habit_type: 'boolean' },
+  { name: 'Upper', habit_type: 'boolean' },
+  { name: 'Lower', habit_type: 'boolean' },
+  { name: 'Other', habit_type: 'boolean' },
+  { name: 'Electrolytes', habit_type: 'boolean' },
+  { name: 'Creatine', habit_type: 'boolean' },
+  { name: 'Journal', habit_type: 'boolean' },
+  { name: 'Magnesium', habit_type: 'boolean' },
+  { name: 'Socials', habit_type: 'boolean' },
+].map((habit, index) => ({
+  ...habit,
+  position: index,
+  is_active: true,
+}));
