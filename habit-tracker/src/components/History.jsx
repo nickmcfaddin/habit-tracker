@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { getHabitCompletionScore } from '../lib/habitScoring';
 
 const rangeOptions = [
   { value: 'week', label: 'Last 7 days' },
@@ -128,29 +129,38 @@ async function fetchRowsInRange(
 }
 
 async function fetchHistoryData(userId, ranges) {
-  const results = await Promise.all(
-    getDateRanges(ranges).map(async (range) => {
-      const [snapshots, entries] = await Promise.all([
-        fetchRowsInRange(
-          'habit_schedule_snapshots',
-          'snapshot_date',
-          'snapshot_date,required_habit_ids',
-          userId,
-          range
-        ),
-        fetchRowsInRange(
-          'habit_entries',
-          'entry_date',
-          'entry_date,habit_id,boolean_value,number_value',
-          userId,
-          range,
-          'habit_id'
-        ),
-      ]);
+  const [habitResult, results] = await Promise.all([
+    supabase
+      .from('habits')
+      .select('id,name,habit_type,unit,position')
+      .eq('user_id', userId)
+      .order('position'),
+    Promise.all(
+      getDateRanges(ranges).map(async (range) => {
+        const [snapshots, entries] = await Promise.all([
+          fetchRowsInRange(
+            'habit_schedule_snapshots',
+            'snapshot_date',
+            'snapshot_date,required_habit_ids',
+            userId,
+            range
+          ),
+          fetchRowsInRange(
+            'habit_entries',
+            'entry_date',
+            'entry_date,habit_id,boolean_value,number_value',
+            userId,
+            range,
+            'habit_id'
+          ),
+        ]);
 
-      return { snapshots, entries };
-    })
-  );
+        return { snapshots, entries };
+      })
+    ),
+  ]);
+
+  if (habitResult.error) throw habitResult.error;
 
   const history = results.reduce(
     (history, result) => ({
@@ -168,10 +178,10 @@ async function fetchHistoryData(userId, ranges) {
     throw new Error('A saved schedule snapshot has an invalid format.');
   }
 
-  return history;
+  return { ...history, habits: habitResult.data };
 }
 
-function getDailyRecords(start, end, snapshots, entries) {
+function getDailyRecords(start, end, snapshots, entries, habits) {
   const records = [];
 
   for (let date = start; date <= end; date = addDays(date, 1)) {
@@ -181,6 +191,7 @@ function getDailyRecords(start, end, snapshots, entries) {
       records.push({
         date,
         completionPercent: null,
+        fullyCompleted: false,
         hasSnapshot: false,
       });
       continue;
@@ -191,29 +202,107 @@ function getDailyRecords(start, end, snapshots, entries) {
       records.push({
         date,
         completionPercent: null,
+        fullyCompleted: false,
         hasSnapshot: true,
       });
       continue;
     }
 
-    const completedCount = requiredHabitIds.filter((habitId) => {
+    const completionScore = requiredHabitIds.reduce((total, habitId) => {
       const entry = entries.get(`${date}:${habitId}`);
+      const habit =
+        habits.get(habitId) || {
+          name: '',
+          habit_type:
+            entry && entry.boolean_value === null ? 'number' : 'boolean',
+        };
+      const value = entry
+        ? entry.boolean_value !== null
+          ? entry.boolean_value
+          : entry.number_value
+        : undefined;
+
       return (
-        entry?.boolean_value === true ||
-        (entry?.boolean_value === null && entry?.number_value !== null)
+        total + getHabitCompletionScore(habit, value)
       );
-    }).length;
+    }, 0);
 
     records.push({
       date,
       completionPercent: Math.round(
-        (completedCount / requiredHabitIds.length) * 100
+        (completionScore / requiredHabitIds.length) * 100
       ),
+      fullyCompleted: completionScore === requiredHabitIds.length,
       hasSnapshot: true,
     });
   }
 
   return records;
+}
+
+function getHabitStatistics(start, end, snapshots, entries, habits) {
+  const statistics = new Map();
+
+  for (let date = start; date <= end; date = addDays(date, 1)) {
+    const snapshot = snapshots.get(date);
+    if (!snapshot) continue;
+
+    snapshot.required_habit_ids.forEach((habitId) => {
+      const habit = habits.get(habitId);
+      if (!habit) return;
+
+      const entry = entries.get(`${date}:${habitId}`);
+      const value = entry
+        ? entry.boolean_value !== null
+          ? entry.boolean_value
+          : entry.number_value
+        : undefined;
+      const score = getHabitCompletionScore(habit, value);
+      let stat = statistics.get(habitId);
+
+      if (!stat) {
+        stat = {
+          habit,
+          requiredDays: 0,
+          scoreTotal: 0,
+          fullyCompletedDays: 0,
+          partialCreditDays: 0,
+          numericValueTotal: 0,
+          numericValueDays: 0,
+        };
+        statistics.set(habitId, stat);
+      }
+
+      stat.requiredDays += 1;
+      stat.scoreTotal += score;
+      if (score === 1) stat.fullyCompletedDays += 1;
+      if (score === 0.5) stat.partialCreditDays += 1;
+
+      if (
+        habit.habit_type === 'number' &&
+        entry?.number_value !== null &&
+        entry?.number_value !== undefined
+      ) {
+        stat.numericValueTotal += Number(entry.number_value);
+        stat.numericValueDays += 1;
+      }
+    });
+  }
+
+  return [...statistics.values()]
+    .map((stat) => ({
+      ...stat,
+      completionPercent: Math.round(
+        (stat.scoreTotal / stat.requiredDays) * 100
+      ),
+      averageNumericValue: stat.numericValueDays
+        ? stat.numericValueTotal / stat.numericValueDays
+        : null,
+    }))
+    .sort(
+      (first, second) =>
+        (first.habit.position ?? 0) - (second.habit.position ?? 0)
+    );
 }
 
 function formatDate(dateString, options) {
@@ -290,6 +379,7 @@ export default function History({
   const [calendarMonth, setCalendarMonth] = useState(`${today.slice(0, 7)}-01`);
   const [snapshots, setSnapshots] = useState([]);
   const [entries, setEntries] = useState([]);
+  const [habits, setHabits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -311,6 +401,7 @@ export default function History({
       setError('');
       setSnapshots([]);
       setEntries([]);
+      setHabits([]);
 
       try {
         const history = await fetchHistoryData(user.id, [
@@ -320,6 +411,7 @@ export default function History({
         if (active) {
           setSnapshots(history.snapshots);
           setEntries(history.entries);
+          setHabits(history.habits);
         }
       } catch (loadError) {
         if (active) setError(loadError.message);
@@ -349,9 +441,13 @@ export default function History({
       ),
     [entries]
   );
+  const habitMap = useMemo(
+    () => new Map(habits.map((habit) => [habit.id, habit])),
+    [habits]
+  );
   const periodRecords = useMemo(
-    () => getDailyRecords(periodStart, periodEnd, snapshotMap, entryMap),
-    [periodStart, periodEnd, snapshotMap, entryMap]
+    () => getDailyRecords(periodStart, periodEnd, snapshotMap, entryMap, habitMap),
+    [periodStart, periodEnd, snapshotMap, entryMap, habitMap]
   );
   const calendarRecords = useMemo(
     () =>
@@ -359,9 +455,21 @@ export default function History({
         calendarStart,
         calendarEnd,
         snapshotMap,
-        entryMap
+        entryMap,
+        habitMap
       ),
-    [calendarStart, calendarEnd, snapshotMap, entryMap]
+    [calendarStart, calendarEnd, snapshotMap, entryMap, habitMap]
+  );
+  const habitStatistics = useMemo(
+    () =>
+      getHabitStatistics(
+        periodStart,
+        periodEnd,
+        snapshotMap,
+        entryMap,
+        habitMap
+      ),
+    [periodStart, periodEnd, snapshotMap, entryMap, habitMap]
   );
   const calendarRecordMap = useMemo(
     () => new Map(calendarRecords.map((record) => [record.date, record])),
@@ -380,7 +488,7 @@ export default function History({
       )
     : null;
   const completedDays = recordedDays.filter(
-    (record) => record.completionPercent === 100
+    (record) => record.fullyCompleted
   ).length;
   const perfectDayRate = recordedDays.length
     ? Math.round((completedDays / recordedDays.length) * 100)
@@ -485,6 +593,71 @@ export default function History({
             <span>Days with a schedule snapshot</span>
             <strong>{snapshotDays.length}</strong>
           </article>
+        </section>
+
+        <section className="history-panel">
+          <div className="history-panel-heading">
+            <div>
+              <p className="eyebrow">INDIVIDUAL HABITS</p>
+              <h2>Habit breakdown</h2>
+            </div>
+            <span>Selected date range</span>
+          </div>
+
+          {loading ? (
+            <p className="loading-text">Loading habit statistics...</p>
+          ) : habitStatistics.length === 0 ? (
+            <p className="history-empty">
+              No required habit snapshots in this range yet.
+            </p>
+          ) : (
+            <div className="habit-stat-list">
+              {habitStatistics.map((stat) => (
+                <article className="habit-stat-card" key={stat.habit.id}>
+                  <div className="habit-stat-heading">
+                    <div>
+                      <h3>{stat.habit.name}</h3>
+                      <span>
+                        {stat.fullyCompletedDays} of {stat.requiredDays} days
+                        fully complete
+                        {stat.partialCreditDays > 0 &&
+                          ` · ${stat.partialCreditDays} partial`}
+                      </span>
+                    </div>
+                    <strong>{stat.completionPercent}%</strong>
+                  </div>
+
+                  <div className="progress-track">
+                    <div
+                      className="progress-fill"
+                      style={{ width: `${stat.completionPercent}%` }}
+                    />
+                  </div>
+
+                  {stat.averageNumericValue !== null && (
+                    <p className="habit-stat-average">
+                      Average logged:{' '}
+                      <strong>
+                        {stat.averageNumericValue.toFixed(1)}
+                        {stat.habit.unit ? ` ${stat.habit.unit}` : ''}
+                      </strong>
+                    </p>
+                  )}
+
+                  {stat.habit.name === 'Waters' && (
+                    <p className="habit-stat-rule">
+                      Under 10 = 0 · 10 to under 12 = 0.5 · 12+ = 1
+                    </p>
+                  )}
+                  {stat.habit.name === 'Sleep' && (
+                    <p className="habit-stat-rule">
+                      Under 6 = 0 · 6 to under 7 = 0.5 · 7+ = 1
+                    </p>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="history-panel">

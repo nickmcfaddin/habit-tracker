@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import {
+  formatCompletionScore,
+  getHabitCompletionScore,
+} from '../lib/habitScoring';
 import { getOrCreateScheduleSnapshot } from '../lib/scheduleSnapshots';
 
 function getLocalDate() {
@@ -123,19 +127,16 @@ export default function Dashboard({
     (habit) => !requiredHabitIdSet.has(habit.id)
   );
 
-  const completedCount = requiredHabits.filter((habit) => {
-  const value = entries[habit.id];
-
-  if (habit.habit_type === 'boolean') {
-    return value === true;
-  }
-
-  return value !== undefined && value !== null && value !== '';
-  }).length;
+  const completionScore = requiredHabits.reduce(
+    (total, habit) =>
+      total + getHabitCompletionScore(habit, entries[habit.id]),
+    0
+  );
 
   const progress = requiredHabits.length
-    ? Math.round((completedCount / requiredHabits.length) * 100)
+    ? Math.round((completionScore / requiredHabits.length) * 100)
     : 0;
+  const fullyCompleted = completionScore === requiredHabits.length;
 
   async function saveEntry(habit, rawValue) {
     setError('');
@@ -277,7 +278,7 @@ export default function Dashboard({
             <div>
               <p className="eyebrow">DAILY PROGRESS</p>
               <h2>
-                {completedCount}
+                {formatCompletionScore(completionScore)}
                 <span> / {requiredHabits.length}</span>
               </h2>
             </div>
@@ -293,9 +294,13 @@ export default function Dashboard({
           </div>
 
           <p className="progress-caption">
-            {completedCount === requiredHabits.length
-              ? 'All required habits completed. Great work.'
-              : `${requiredHabits.length - completedCount} required habits left`}
+            {requiredHabits.length === 0
+              ? 'No required habits scheduled today.'
+              : fullyCompleted
+                ? 'All required habits completed. Great work.'
+                : `${formatCompletionScore(
+                    requiredHabits.length - completionScore
+                  )} completion points left`}
           </p>
         </section>
 
@@ -336,12 +341,20 @@ export default function Dashboard({
               (requiredHabit) => requiredHabit.id === habit.id
             );
               const value = entries[habit.id];
-              const isCompleted =
-                habit.habit_type === 'boolean' && value === true;
+            const score = getHabitCompletionScore(habit, value);
+            const isCompleted = score === 1;
+            const completionClass =
+              score === 1
+                ? 'completed'
+                : score === 0.5
+                  ? 'partial'
+                  : isDueToday && selectedDate < getLocalDate()
+                    ? 'incomplete'
+                    : '';
 
               return (
                 <article
-                  className={`habit-row ${isCompleted ? 'completed' : ''} ${
+                className={`habit-row ${completionClass} ${
                     !isDueToday ? 'optional-habit' : ''
                   }`}
                   key={habit.id}

@@ -453,6 +453,16 @@ form input::placeholder {
   background: #171c12;
 }
 
+.habit-row.partial {
+  border-color: #806b2f;
+  background: #282313;
+}
+
+.habit-row.incomplete {
+  border-color: #643838;
+  background: #261717;
+}
+
 .habit-information {
   display: flex;
   flex-direction: column;
@@ -1093,4 +1103,63 @@ form input::placeholder {
   .dashboard-brand > span {
     display: none;
   }
+}
+
+.habit-stat-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 10px;
+}
+
+.habit-stat-card {
+  padding: 15px;
+  border: 1px solid #303039;
+  border-radius: 10px;
+  background: #111114;
+}
+
+.habit-stat-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.habit-stat-heading h3 {
+  margin: 0 0 5px;
+  color: #f4f4f5;
+  font-family: 'Manrope', sans-serif;
+  font-size: 14px;
+}
+
+.habit-stat-heading span,
+.habit-stat-average,
+.habit-stat-rule {
+  color: #92929c;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.habit-stat-heading > strong {
+  color: #c4f06a;
+  font-family: 'Manrope', sans-serif;
+  font-size: 18px;
+}
+
+.habit-stat-card .progress-track {
+  height: 6px;
+}
+
+.habit-stat-average {
+  margin-top: 12px;
+}
+
+.habit-stat-average strong {
+  color: #d4d4d8;
+}
+
+.habit-stat-rule {
+  margin-top: 10px;
+  color: #777780;
 }

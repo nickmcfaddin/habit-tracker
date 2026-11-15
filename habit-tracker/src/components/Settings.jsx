@@ -231,10 +231,12 @@ export default function Settings({ user, onBack }) {
         )}
 
         <section className="settings-info">
-          <h2>Daily habits</h2>
+          <h2>Schedule notes</h2>
           <p>
-            All other active habits are required every day. Their schedules
-            aren't changed here.
+            Creatine is required Monday, Wednesday, Friday, and Saturday.
+            Electrolytes is required Sunday, Tuesday, and Thursday. All other
+            active habits are required every day; only the four schedules above
+            are editable here.
           </p>
         </section>
       </div>
