@@ -1049,6 +1049,67 @@ form input::placeholder {
   line-height: 1.6;
 }
 
+.history-more {
+  margin-top: 16px;
+}
+
+.history-more summary {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+  border: 1px solid #35353d;
+  border-radius: 10px;
+  background: #141417;
+  color: #c4f06a;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.history-more summary::-webkit-details-marker {
+  display: none;
+}
+
+.history-more summary::after {
+  margin-left: 8px;
+  content: '+';
+  font-size: 18px;
+  line-height: 1;
+}
+
+.history-more[open] summary::after {
+  content: '−';
+}
+
+.history-more summary:hover {
+  border-color: #c4f06a;
+}
+
+.history-more summary:focus-visible {
+  outline: 2px solid #c4f06a;
+  outline-offset: 3px;
+}
+
+.history-more-open,
+.history-more[open] .history-more-closed {
+  display: none;
+}
+
+.history-more[open] .history-more-open {
+  display: inline;
+}
+
+.history-more-content {
+  padding-top: 2px;
+}
+
+.history-more-content .history-range-card {
+  margin-top: 16px;
+}
+
 @media (max-width: 600px) {
   .history-range-card {
     align-items: flex-start;

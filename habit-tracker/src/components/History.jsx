@@ -538,230 +538,7 @@ export default function History({
           Track daily completion against the schedule saved for each date.
         </p>
 
-        <section className="history-range-card">
-          <div>
-            <label htmlFor="history-range">Showing</label>
-            <select
-              id="history-range"
-              className="history-range-select"
-              value={range}
-              onChange={(event) => setRange(event.target.value)}
-            >
-              {rangeOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <span className="history-range-dates">
-            {formatDate(periodStart, {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })}
-            {' – '}
-            {formatDate(periodEnd, {
-              month: 'short',
-              day: 'numeric',
-              year: 'numeric',
-            })}
-          </span>
-        </section>
-
         {error && <p className="feedback error">{error}</p>}
-
-        <section className="history-stats" aria-label="Completion summary">
-          <article className="history-stat-card">
-            <span>Average daily completion</span>
-            <strong>
-              {averageCompletion === null ? '—' : `${averageCompletion}%`}
-            </strong>
-          </article>
-          <article className="history-stat-card">
-            <span>Fully completed days</span>
-            <strong>
-              {recordedDays.length
-                ? `${completedDays} / ${recordedDays.length}`
-                : '—'}
-              {perfectDayRate !== null && (
-                <small>{perfectDayRate}%</small>
-              )}
-            </strong>
-          </article>
-          <article className="history-stat-card">
-            <span>Days with a schedule snapshot</span>
-            <strong>{snapshotDays.length}</strong>
-          </article>
-        </section>
-
-        <section className="history-panel">
-          <div className="history-panel-heading">
-            <div>
-              <p className="eyebrow">INDIVIDUAL HABITS</p>
-              <h2>Habit breakdown</h2>
-            </div>
-            <span>Selected date range</span>
-          </div>
-
-          {loading ? (
-            <p className="loading-text">Loading habit statistics...</p>
-          ) : habitStatistics.length === 0 ? (
-            <p className="history-empty">
-              No required habit snapshots in this range yet.
-            </p>
-          ) : (
-            <div className="habit-stat-list">
-              {habitStatistics.map((stat) => (
-                <article className="habit-stat-card" key={stat.habit.id}>
-                  <div className="habit-stat-heading">
-                    <div>
-                      <h3>{stat.habit.name}</h3>
-                      <span>
-                        {stat.fullyCompletedDays} of {stat.requiredDays} days
-                        fully complete
-                        {stat.partialCreditDays > 0 &&
-                          ` · ${stat.partialCreditDays} partial`}
-                      </span>
-                    </div>
-                    <strong>{stat.completionPercent}%</strong>
-                  </div>
-
-                  <div className="progress-track">
-                    <div
-                      className="progress-fill"
-                      style={{ width: `${stat.completionPercent}%` }}
-                    />
-                  </div>
-
-                  {stat.averageNumericValue !== null && (
-                    <p className="habit-stat-average">
-                      Average logged:{' '}
-                      <strong>
-                        {stat.averageNumericValue.toFixed(1)}
-                        {stat.habit.unit ? ` ${stat.habit.unit}` : ''}
-                      </strong>
-                    </p>
-                  )}
-
-                  {stat.habit.name === 'Waters' && (
-                    <p className="habit-stat-rule">
-                      Under 10 = 0 · 10 to under 12 = 0.5 · 12+ = 1
-                    </p>
-                  )}
-                  {stat.habit.name === 'Sleep' && (
-                    <p className="habit-stat-rule">
-                      Under 6 = 0 · 6 to under 7 = 0.5 · 7+ = 1
-                    </p>
-                  )}
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="history-panel">
-          <div className="history-panel-heading">
-            <div>
-              <p className="eyebrow">DAY BY DAY</p>
-              <h2>Completion trend</h2>
-            </div>
-            <span>Daily completion</span>
-          </div>
-
-          {loading ? (
-            <p className="loading-text">Loading your history...</p>
-          ) : recordedDays.length === 0 ? (
-            <p className="history-empty">
-              {snapshotDays.length === 0
-                ? 'No saved schedule snapshots in this range yet.'
-                : 'No required habits were scheduled on the saved dates in this range.'}
-            </p>
-          ) : (
-            <div className="history-chart-wrap">
-              <svg
-                className="history-chart"
-                viewBox={`0 0 ${chart.width} ${chart.height}`}
-                role="img"
-                aria-label="Daily habit completion percentage"
-              >
-                {[0, 25, 50, 75, 100].map((value) => {
-                  const y =
-                    chart.padding.top +
-                    (1 - value / 100) * chart.plotHeight;
-                  return (
-                    <g key={value}>
-                      <line
-                        x1={chart.padding.left}
-                        x2={chart.width - chart.padding.right}
-                        y1={y}
-                        y2={y}
-                        className="history-chart-grid"
-                      />
-                      <text
-                        x={chart.padding.left - 9}
-                        y={y + 4}
-                        textAnchor="end"
-                        className="history-chart-label"
-                      >
-                        {value}%
-                      </text>
-                    </g>
-                  );
-                })}
-                {chart.segments.map((segment, index) => (
-                  <polyline
-                    key={`segment-${index}`}
-                    points={segment.map(({ x, y }) => `${x},${y}`).join(' ')}
-                    className="history-chart-line"
-                  />
-                ))}
-                {chart.segments.flat().map(({ x, y, record }) => (
-                  <circle
-                    key={record.date}
-                    cx={x}
-                    cy={y}
-                    r="3.5"
-                    className="history-chart-point"
-                  >
-                    <title>
-                      {formatDate(record.date, {
-                        month: 'short',
-                        day: 'numeric',
-                      })}
-                      : {record.completionPercent}%
-                    </title>
-                  </circle>
-                ))}
-                {[0, Math.floor((periodRecords.length - 1) / 2), periodRecords.length - 1]
-                  .filter((index, position, indexes) => indexes.indexOf(index) === position)
-                  .map((index) => {
-                    const record = periodRecords[index];
-                    if (!record) return null;
-                    const x =
-                      chart.padding.left +
-                      (periodRecords.length > 1
-                        ? (index / (periodRecords.length - 1)) * chart.plotWidth
-                        : 0);
-                    return (
-                      <text
-                        key={record.date}
-                        x={x}
-                        y={chart.height - 8}
-                        textAnchor="middle"
-                        className="history-chart-label"
-                      >
-                        {formatDate(record.date, {
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </text>
-                    );
-                  })}
-              </svg>
-            </div>
-          )}
-        </section>
 
         <section className="history-panel">
           <div className="history-panel-heading">
@@ -867,6 +644,237 @@ export default function History({
             unscored.
           </p>
         </section>
+
+        <section className="history-panel">
+          <div className="history-panel-heading">
+            <div>
+              <p className="eyebrow">DAY BY DAY</p>
+              <h2>Completion trend</h2>
+            </div>
+            <span>Daily completion</span>
+          </div>
+
+          {loading ? (
+            <p className="loading-text">Loading your history...</p>
+          ) : recordedDays.length === 0 ? (
+            <p className="history-empty">
+              {snapshotDays.length === 0
+                ? 'No saved schedule snapshots in this range yet.'
+                : 'No required habits were scheduled on the saved dates in this range.'}
+            </p>
+          ) : (
+            <div className="history-chart-wrap">
+              <svg
+                className="history-chart"
+                viewBox={`0 0 ${chart.width} ${chart.height}`}
+                role="img"
+                aria-label="Daily habit completion percentage"
+              >
+                {[0, 25, 50, 75, 100].map((value) => {
+                  const y =
+                    chart.padding.top +
+                    (1 - value / 100) * chart.plotHeight;
+                  return (
+                    <g key={value}>
+                      <line
+                        x1={chart.padding.left}
+                        x2={chart.width - chart.padding.right}
+                        y1={y}
+                        y2={y}
+                        className="history-chart-grid"
+                      />
+                      <text
+                        x={chart.padding.left - 9}
+                        y={y + 4}
+                        textAnchor="end"
+                        className="history-chart-label"
+                      >
+                        {value}%
+                      </text>
+                    </g>
+                  );
+                })}
+                {chart.segments.map((segment, index) => (
+                  <polyline
+                    key={`segment-${index}`}
+                    points={segment.map(({ x, y }) => `${x},${y}`).join(' ')}
+                    className="history-chart-line"
+                  />
+                ))}
+                {chart.segments.flat().map(({ x, y, record }) => (
+                  <circle
+                    key={record.date}
+                    cx={x}
+                    cy={y}
+                    r="3.5"
+                    className="history-chart-point"
+                  >
+                    <title>
+                      {formatDate(record.date, {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                      : {record.completionPercent}%
+                    </title>
+                  </circle>
+                ))}
+                {[0, Math.floor((periodRecords.length - 1) / 2), periodRecords.length - 1]
+                  .filter((index, position, indexes) => indexes.indexOf(index) === position)
+                  .map((index) => {
+                    const record = periodRecords[index];
+                    if (!record) return null;
+                    const x =
+                      chart.padding.left +
+                      (periodRecords.length > 1
+                        ? (index / (periodRecords.length - 1)) * chart.plotWidth
+                        : 0);
+                    return (
+                      <text
+                        key={record.date}
+                        x={x}
+                        y={chart.height - 8}
+                        textAnchor="middle"
+                        className="history-chart-label"
+                      >
+                        {formatDate(record.date, {
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </text>
+                    );
+                  })}
+              </svg>
+            </div>
+          )}
+        </section>
+
+        <details className="history-more">
+          <summary>
+            <span className="history-more-closed">View more</span>
+            <span className="history-more-open">View less</span>
+          </summary>
+          <div className="history-more-content">
+            <section className="history-range-card">
+              <div>
+                <label htmlFor="history-range">Showing</label>
+                <select
+                  id="history-range"
+                  className="history-range-select"
+                  value={range}
+                  onChange={(event) => setRange(event.target.value)}
+                >
+                  {rangeOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <span className="history-range-dates">
+                {formatDate(periodStart, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+                {' – '}
+                {formatDate(periodEnd, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </span>
+            </section>
+
+            <section className="history-stats" aria-label="Completion summary">
+              <article className="history-stat-card">
+                <span>Average daily completion</span>
+                <strong>
+                  {averageCompletion === null ? '—' : `${averageCompletion}%`}
+                </strong>
+              </article>
+              <article className="history-stat-card">
+                <span>Fully completed days</span>
+                <strong>
+                  {recordedDays.length
+                    ? `${completedDays} / ${recordedDays.length}`
+                    : '—'}
+                  {perfectDayRate !== null && (
+                    <small>{perfectDayRate}%</small>
+                  )}
+                </strong>
+              </article>
+              <article className="history-stat-card">
+                <span>Days with a schedule snapshot</span>
+                <strong>{snapshotDays.length}</strong>
+              </article>
+            </section>
+
+            <section className="history-panel">
+              <div className="history-panel-heading">
+                <div>
+                  <p className="eyebrow">INDIVIDUAL HABITS</p>
+                  <h2>Habit breakdown</h2>
+                </div>
+                <span>Selected date range</span>
+              </div>
+
+              {loading ? (
+                <p className="loading-text">Loading habit statistics...</p>
+              ) : habitStatistics.length === 0 ? (
+                <p className="history-empty">
+                  No required habit snapshots in this range yet.
+                </p>
+              ) : (
+                <div className="habit-stat-list">
+                  {habitStatistics.map((stat) => (
+                    <article className="habit-stat-card" key={stat.habit.id}>
+                      <div className="habit-stat-heading">
+                        <div>
+                          <h3>{stat.habit.name}</h3>
+                          <span>
+                            {stat.fullyCompletedDays} of {stat.requiredDays} days
+                            fully complete
+                            {stat.partialCreditDays > 0 &&
+                              ` · ${stat.partialCreditDays} partial`}
+                          </span>
+                        </div>
+                        <strong>{stat.completionPercent}%</strong>
+                      </div>
+
+                      <div className="progress-track">
+                        <div
+                          className="progress-fill"
+                          style={{ width: `${stat.completionPercent}%` }}
+                        />
+                      </div>
+
+                      {stat.averageNumericValue !== null && (
+                        <p className="habit-stat-average">
+                          Average logged:{' '}
+                          <strong>
+                            {stat.averageNumericValue.toFixed(1)}
+                            {stat.habit.unit ? ` ${stat.habit.unit}` : ''}
+                          </strong>
+                        </p>
+                      )}
+
+                      {stat.habit.name === 'Waters' && (
+                        <p className="habit-stat-rule">
+                          Under 10 = 0 · 10 to under 12 = 0.5 · 12+ = 1
+                        </p>
+                      )}
+                      {stat.habit.name === 'Sleep' && (
+                        <p className="habit-stat-rule">
+                          Under 6 = 0 · 6 to under 7 = 0.5 · 7+ = 1
+                        </p>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          </div>
+        </details>
       </div>
     </main>
   );
