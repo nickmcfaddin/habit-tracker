@@ -1,5 +1,15 @@
 import { supabase } from './supabase';
 
+export function getRequiredHabitIdsForDay(habits, day) {
+  return habits
+    .filter(
+      (habit) =>
+        habit.is_required !== false &&
+        (habit.schedule_days || []).includes(day)
+    )
+    .map((habit) => habit.id);
+}
+
 async function readScheduleSnapshot(userId, date) {
   const { data, error } = await supabase
     .from('habit_schedule_snapshots')

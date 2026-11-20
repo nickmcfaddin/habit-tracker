@@ -4,7 +4,10 @@ import {
   formatCompletionScore,
   getHabitCompletionScore,
 } from '../lib/habitScoring';
-import { getOrCreateScheduleSnapshot } from '../lib/scheduleSnapshots';
+import {
+  getOrCreateScheduleSnapshot,
+  getRequiredHabitIdsForDay,
+} from '../lib/scheduleSnapshots';
 
 function getLocalDate() {
   const now = new Date();
@@ -82,9 +85,10 @@ export default function Dashboard({
 
       try {
         const selectedDay = getDayOfWeek(selectedDate);
-        const scheduledHabitIds = habitData
-          .filter((habit) => habit.schedule_days.includes(selectedDay))
-          .map((habit) => habit.id);
+        const scheduledHabitIds = getRequiredHabitIdsForDay(
+          habitData,
+          selectedDay
+        );
 
         scheduleHabitIds = await getOrCreateScheduleSnapshot(
           user.id,
@@ -362,15 +366,14 @@ export default function Dashboard({
                   <div className="habit-information">
                     <span className="habit-name">{habit.name}</span>
                     <span className="schedule-status">
-                      {isDueToday ? 'Required today' : 'Optional today'}
+                      {isDueToday
+                        ? 'Required today'
+                        : (habit.schedule_days || []).includes(
+                              getDayOfWeek(selectedDate)
+                            )
+                          ? 'Optional · scheduled today'
+                          : 'Optional today'}
                     </span>
-                    {view === 'full' && (
-                      <span className="habit-type">
-                        {habit.habit_type === 'number'
-                          ? habit.unit || 'Numeric entry'
-                          : 'Daily habit'}
-                      </span>
-                    )}
                   </div>
 
                   {habit.habit_type === 'boolean' ? (

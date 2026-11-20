@@ -132,7 +132,9 @@ async function fetchHistoryData(userId, ranges) {
   const [habitResult, results] = await Promise.all([
     supabase
       .from('habits')
-      .select('id,name,habit_type,unit,position')
+      .select(
+        'id,name,habit_type,unit,position,partial_threshold,full_threshold'
+      )
       .eq('user_id', userId)
       .order('position'),
     Promise.all(
@@ -858,16 +860,17 @@ export default function History({
                         </p>
                       )}
 
-                      {stat.habit.name === 'Waters' && (
-                        <p className="habit-stat-rule">
-                          Under 10 = 0 · 10 to under 12 = 0.5 · 12+ = 1
-                        </p>
-                      )}
-                      {stat.habit.name === 'Sleep' && (
-                        <p className="habit-stat-rule">
-                          Under 6 = 0 · 6 to under 7 = 0.5 · 7+ = 1
-                        </p>
-                      )}
+                      {stat.habit.habit_type === 'number' &&
+                        stat.habit.partial_threshold !== null &&
+                        stat.habit.partial_threshold !== undefined &&
+                        stat.habit.full_threshold !== null &&
+                        stat.habit.full_threshold !== undefined && (
+                          <p className="habit-stat-rule">
+                            0 below {stat.habit.partial_threshold} · 0.5 at{' '}
+                            {stat.habit.partial_threshold}+ · 1 at{' '}
+                            {stat.habit.full_threshold}+
+                          </p>
+                        )}
                     </article>
                   ))}
                 </div>
