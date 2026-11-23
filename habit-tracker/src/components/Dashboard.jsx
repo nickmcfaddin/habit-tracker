@@ -45,7 +45,6 @@ export default function Dashboard({
   const [requiredHabitIds, setRequiredHabitIds] = useState([]);
   const [entries, setEntries] = useState({});
   const [selectedDate, setSelectedDate] = useState(getLocalDate());
-  const [view, setView] = useState('full');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState({});
   const [error, setError] = useState('');
@@ -313,21 +312,6 @@ export default function Dashboard({
             <p className="eyebrow">YOUR ROUTINE</p>
             <h2>Daily habits</h2>
           </div>
-
-          <div className="view-switch">
-            <button
-              className={view === 'full' ? 'selected' : ''}
-              onClick={() => setView('full')}
-            >
-              Full
-            </button>
-            <button
-              className={view === 'quick' ? 'selected' : ''}
-              onClick={() => setView('quick')}
-            >
-              Quick entry
-            </button>
-          </div>
         </div>
 
         {error && <p className="feedback error dashboard-error">{error}</p>}
@@ -339,7 +323,7 @@ export default function Dashboard({
             No active habits found. You can add habits in Settings later.
           </p>
         ) : (
-          <section className={`habit-list ${view}`}>
+          <section className="habit-list">
             {[...requiredHabits, ...optionalHabits].map((habit) => {
             const isDueToday = requiredHabits.some(
               (requiredHabit) => requiredHabit.id === habit.id

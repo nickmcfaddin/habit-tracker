@@ -407,28 +407,6 @@ form input::placeholder {
   font-size: 23px;
 }
 
-.view-switch {
-  display: flex;
-  padding: 4px;
-  border: 1px solid #303039;
-  border-radius: 9px;
-  background: #151519;
-}
-
-.view-switch button {
-  padding: 8px 12px;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: #92929c;
-  font-size: 11px;
-}
-
-.view-switch button.selected {
-  background: #303039;
-  color: #f4f4f5;
-}
-
 .habit-list {
   display: flex;
   flex-direction: column;
@@ -580,14 +558,6 @@ form input::placeholder {
     flex-direction: column;
   }
 
-  .view-switch {
-    width: 100%;
-  }
-
-  .view-switch button {
-    flex: 1;
-  }
-
   .habit-row {
     padding: 12px;
   }
@@ -604,28 +574,6 @@ form input::placeholder {
 
   .numeric-entry input {
     width: 70px;
-  }
-}
-
-/* Compact quick-entry layout */
-.habit-list.quick {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.habit-list.quick .habit-row {
-  min-height: 62px;
-  padding: 10px 12px;
-}
-
-.habit-list.quick .habit-name {
-  font-size: 12px;
-}
-
-@media (max-width: 600px) {
-  .habit-list.quick {
-    grid-template-columns: 1fr;
   }
 }
 
